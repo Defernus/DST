@@ -13,8 +13,11 @@ public:
 	virtual void onJustPressed	() = 0;
 	virtual void onPressed		() = 0;
 	virtual void onReleased		() = 0;
+
+	virtual const char* getDiscription() const = 0;
 };
 
+void printHelp();
 void initInputHandler(GLFWwindow *window);
 void addEvent(KeyEvent *e);
 void processInput(GLFWwindow *window);

@@ -2,6 +2,7 @@
 
 #include <set>
 #include <map>
+#include <iostream>
 
 std::multimap<int, KeyEvent*> events;
 
@@ -44,4 +45,21 @@ void addEvent(KeyEvent *e)
 {
 	events.insert({ e->keyCode, e });
 	used_keys.insert(e->keyCode);
+}
+
+void printHelp()
+{
+	std::cout << "============HELP============\n";
+
+	for (std::multimap<int, KeyEvent*>::iterator i = events.begin(); i != events.end(); ++i)
+	{
+		char str[] = "|                          |\n";
+		for (int j = 0; j != strlen(i->second->getDiscription()) && j != 25; ++j)
+		{
+			str[j + 2] = i->second->getDiscription()[j];
+		}
+		std::cout << str;
+	}
+
+	std::cout << "============================" << std::endl;
 }
