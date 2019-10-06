@@ -15,9 +15,9 @@ public:
 	unsigned int ID;
 	Logger *logger;
 	Shader(){}
-	Shader(Logger &log_, const char* vertexPath, const char* fragmentPath, const char* geometryPath = nullptr)
+	Shader(Logger &logger, const char* vertexPath, const char* fragmentPath, const char* geometryPath = nullptr)
 	{
-		logger = &log_;
+		this->logger = &logger;
 		// 1. retrieve the vertex/fragment source code from filePath
 		std::string vertexCode;
 		std::string fragmentCode;
@@ -56,7 +56,7 @@ public:
 		}
 		catch (std::ifstream::failure e)
 		{
-			*logger << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+			logger << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
 		}
 		const char* vShaderCode = vertexCode.c_str();
 		const char * fShaderCode = fragmentCode.c_str();

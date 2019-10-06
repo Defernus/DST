@@ -1,5 +1,6 @@
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
+
+#include "input_handler.h"
 
 #include "utils/shader.h"
 #include "utils/logger.h"
@@ -7,11 +8,13 @@
 int width = 900;
 int height = 600;
 
-bool is_key_pressed[GLFW_KEY_LAST + 1];
+float start_time;
 
 Logger logger;
 
 Shader shader;
+
+GLFWwindow* window;
 
 void framebuffer_size_callback(GLFWwindow* window, int w, int h)
 {
@@ -27,28 +30,68 @@ void reloadShaders()
 	logger << "shader reloaded" << std::endl;
 }
 
-void processInput(GLFWwindow *window)
+void printHelp()
 {
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+	std::cout <<
+		"===========HELP===========\n" <<
+		"| [r] to reload shaders  |\n" <<
+		"| [t] to reset time      |\n" <<
+		"| [f1] to print this     |\n" <<
+		"| [esc] to exit          |\n" <<
+		"==========================" << std::endl;
+}
+
+class ShaderReloadKE :KeyEvent
+{
+public:
+	ShaderReloadKE() : KeyEvent(GLFW_KEY_R) {}
+	void onJustPressed()
+	{
+		reloadShaders();
+	}
+	void onPressed() {}
+	void onReleased() {}
+}shader_reload_event;
+
+class TimeResetKE :KeyEvent
+{
+public:
+	TimeResetKE() : KeyEvent(GLFW_KEY_T) {}
+	void onJustPressed()
+	{
+		start_time = glfwGetTime();
+		logger << "time reseted" << std::endl;
+	}
+	void onPressed() {}
+	void onReleased() {}
+}time_reset_event;
+
+class ExitKE :KeyEvent
+{
+public:
+	ExitKE() : KeyEvent(GLFW_KEY_ESCAPE) {}
+	void onJustPressed()
 	{
 		glfwSetWindowShouldClose(window, true);
 	}
+	void onPressed() {}
+	void onReleased() {}
+}exit_event;
 
-	if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS && !is_key_pressed[GLFW_KEY_R])
+class HelpKE :KeyEvent
+{
+public:
+	HelpKE() : KeyEvent(GLFW_KEY_F1) {}
+	void onJustPressed()
 	{
-		is_key_pressed[GLFW_KEY_R] = true;
-		reloadShaders();
+		printHelp;
 	}
-	else if (glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE)
-	{
-		is_key_pressed[GLFW_KEY_R] = false;
-	}
-}
+	void onPressed() {}
+	void onReleased() {}
+}help_event;
 
 int main()
 {
-	for (bool &i : is_key_pressed) i = false;
-
 	logger.set("runtime.log");
 
 	if (!glfwInit())
@@ -63,7 +106,7 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	GLFWwindow* window = glfwCreateWindow(width, height, "Defernus's shader toy", nullptr, nullptr);
+	window = glfwCreateWindow(width, height, "Defernus's shader toy", nullptr, nullptr);
 	if (!window)
 	{
 		logger << "failed to create window";
@@ -109,15 +152,22 @@ int main()
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float)*2, (void*)0);
 
-	float start_time = glfwGetTime();
+	start_time = glfwGetTime();
+
+	initInputHandler(window);
+
+	addEvent((KeyEvent*)&shader_reload_event);
+	addEvent((KeyEvent*)&time_reset_event);
+	addEvent((KeyEvent*)&help_event);
+	addEvent((KeyEvent*)&exit_event);
 
 	while (!glfwWindowShouldClose(window))
 	{
 		processInput(window);
 
-		shader.setFloat("width", width);
-		shader.setFloat("height", height);
-		shader.setFloat("time", glfwGetTime() - start_time);
+		shader.setFloat("WIDTH", width);
+		shader.setFloat("HEIGHT", height);
+		shader.setFloat("TIME", glfwGetTime() - start_time);
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -126,6 +176,8 @@ int main()
 	}
 
 	glfwTerminate();
+
+	logger << "finished";
 
 	return 0;
 }
