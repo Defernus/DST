@@ -30,3 +30,15 @@
 *.exe
 *.out
 *.app
+
+# Visual studio
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.idb
+*.pdb
+*.lastbuildstate
+*.tlog
+
+# Log files
+*.log
