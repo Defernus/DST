@@ -2,6 +2,8 @@
 #include <GLFW/glfw3.h>
 
 #include <string>
+#include <thread>
+#include <chrono>
 
 #include "input_handler.h"
 
@@ -24,28 +26,13 @@ GLFWwindow* window;
 float delta_time;
 int fps;
 
-float time;
-
-bool is_timer_run = true;
-
-
-void redraw()
-{
-	shader.setVec2("WIN_SIZE", glm::vec2(width, height));
-	shader.setFloat("TIME", time);
-
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	glfwSwapBuffers(window);
-}
+float timer;
 
 void framebuffer_size_callback(GLFWwindow* window, int w, int h)
 {
 	width = w;
 	height = h;
 	glViewport(0, 0, w, h);
-
-	redraw();
 }
 
 void reloadShaders()
@@ -61,7 +48,6 @@ public:
 	ShaderReloadKE() : KeyEvent(GLFW_KEY_R) {}
 	void onJustPressed()
 	{
-		redraw();
 		reloadShaders();
 	}
 	void onPressed() {}
@@ -80,12 +66,9 @@ public:
 	void onJustPressed()
 	{
 		time_on_pause = 0.0;
-		time = 0.0;
+		timer = 0.0;
 		paused_time = glfwGetTime();
 		start_time = glfwGetTime();
-
-
-		redraw();
 	}
 	void onPressed() {}
 	void onReleased() {}
@@ -133,15 +116,19 @@ public:
 class PauseKE :KeyEvent
 {
 public:
+	bool is_timer_run = true;
+
 	PauseKE() : KeyEvent(GLFW_KEY_SPACE) {}
 	void onJustPressed()
 	{
 		if (is_timer_run)
 		{
+			logger << "timer paused" << std::endl;
 			paused_time = glfwGetTime();
 		}
 		else
 		{
+			logger << "timer unpaused" << std::endl;
 			time_on_pause += glfwGetTime() - paused_time;
 		}
 
@@ -155,6 +142,27 @@ public:
 		return "[space] to pause";
 	}
 }pause_event;
+
+class FPSLockKE :KeyEvent
+{
+public:
+	bool is_fps_locked = true;
+
+	FPSLockKE() : KeyEvent(GLFW_KEY_F2) {}
+	void onJustPressed()
+	{
+		if (is_fps_locked)logger << "fps unlocked" << std::endl;
+		if (!is_fps_locked)logger << "fps locked" << std::endl;
+		is_fps_locked = !is_fps_locked;
+	}
+	void onPressed() {}
+	void onReleased() {}
+
+	const char* getDiscription() const
+	{
+		return "[f2] to switch fps lock";
+	}
+}fps_lock_event;
 
 int main()
 {
@@ -219,7 +227,7 @@ int main()
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float)*2, (void*)0);
 
 	start_time = glfwGetTime();
-	time = start_time;
+	timer = start_time;
 
 	initInputHandler(window);
 
@@ -228,12 +236,15 @@ int main()
 	addEvent((KeyEvent*)&help_event);
 	addEvent((KeyEvent*)&exit_event);
 	addEvent((KeyEvent*)&pause_event);
+	addEvent((KeyEvent*)&fps_lock_event);
 
 	printHelp();
 
 	float last_frame = glfwGetTime();
 	float second_timer = 0;
 	int fps_counter = 0;
+
+	float min_spf = 1.0f / 60.0f;
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -250,21 +261,27 @@ int main()
 			second_timer = 0;
 		}
 
+		if (fps_lock_event.is_fps_locked && delta_time < min_spf)
+		{
+			std::this_thread::sleep_for(std::chrono::microseconds(long((min_spf - delta_time) * 1000000L)));
+		}
+
 		processInput(window);
 
-		if (is_timer_run)
+		if (pause_event.is_timer_run)
 		{
-			time =  glfwGetTime() - (start_time + time_on_pause);
+			timer =  glfwGetTime() - (start_time + time_on_pause);
 		}
 
-		std::string title = "Defernus's shader toy FPS: " + std::to_string(fps) + " timer: " + std::to_string(time);
+		std::string title = "Defernus's shader toy FPS: " + std::to_string(fps) + " timer: " + std::to_string(timer);
 		glfwSetWindowTitle(window, title.c_str());
 
-		if (is_timer_run)
-		{
-			redraw();
-		}
+		shader.setVec2("WIN_SIZE", glm::vec2(width, height));
+		shader.setFloat("TIME", timer);
 
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
