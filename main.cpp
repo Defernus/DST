@@ -29,11 +29,23 @@ float time;
 bool is_timer_run = true;
 
 
+void redraw()
+{
+	shader.setVec2("WIN_SIZE", glm::vec2(width, height));
+	shader.setFloat("TIME", time);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glfwSwapBuffers(window);
+}
+
 void framebuffer_size_callback(GLFWwindow* window, int w, int h)
 {
 	width = w;
 	height = h;
 	glViewport(0, 0, w, h);
+
+	redraw();
 }
 
 void reloadShaders()
@@ -49,6 +61,7 @@ public:
 	ShaderReloadKE() : KeyEvent(GLFW_KEY_R) {}
 	void onJustPressed()
 	{
+		redraw();
 		reloadShaders();
 	}
 	void onPressed() {}
@@ -66,7 +79,13 @@ public:
 	TimeResetKE() : KeyEvent(GLFW_KEY_T) {}
 	void onJustPressed()
 	{
+		time_on_pause = 0.0;
+		time = 0.0;
+		paused_time = glfwGetTime();
 		start_time = glfwGetTime();
+
+
+		redraw();
 	}
 	void onPressed() {}
 	void onReleased() {}
@@ -241,12 +260,11 @@ int main()
 		std::string title = "Defernus's shader toy FPS: " + std::to_string(fps) + " timer: " + std::to_string(time);
 		glfwSetWindowTitle(window, title.c_str());
 
-		shader.setVec2("WIN_SIZE", glm::vec2(width, height));
-		shader.setFloat("TIME", time);
+		if (is_timer_run)
+		{
+			redraw();
+		}
 
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
