@@ -3,41 +3,123 @@
 #include <iostream>
 #include <fstream>
 
-struct Logger
+namespace lg
 {
-	std::ofstream file;
-
-	Logger(){}
-
-	void set(const char *path)
+	struct Logger
 	{
-		file = std::ofstream(path);
-		std::cout << "LOG started at " << path << std::endl;
+		std::ofstream file;
+
+		Logger() {}
+
+		Logger(const char *path)
+		{
+			set(path);
+		}
+
+		void set(const char *path)
+		{
+			file = std::ofstream(path);
+			std::cout << "LOG started at " << path << std::endl;
+		}
+
+		template<typename T>
+		void print(T v)
+		{
+			if (is_first_print)
+			{
+				file << "[" << msg_index << "]:";
+				std::cout << "[" << msg_index << "]:";
+				is_first_print = false;
+				if (!is_type_defined)
+				{
+					file << "[U] ";
+					std::cout << "[U] ";
+				}
+			}
+
+			file << v;
+			std::cout << v;
+		}
+
+		void endl()
+		{
+			++msg_index;
+			is_type_defined = false;
+			is_first_print = true;
+			std::cout << std::endl;
+			file << std::endl;
+		}
+
+		void inf()
+		{
+			if (!is_first_print) endl();
+			is_type_defined = true;
+			print("[I] ");
+		}
+
+		void war()
+		{
+			if (!is_first_print) endl();
+			is_type_defined = true;
+			print("[W] ");
+		}
+
+		void err()
+		{
+			if (!is_first_print) endl();
+			is_type_defined = true;
+			print("[E] ");
+		}
+
+		~Logger()
+		{
+			file.close();
+		}
+
+		int getMsgIndex() const
+		{
+			return msg_index;
+		}
+	private:
+		bool is_type_defined = false;
+		int msg_index = 0;
+		bool is_first_print = true;
+	};
+
+	Logger &inf(Logger &l)
+	{
+		l.inf();
+		return l;
 	}
 
-	Logger(const char *path)
+	Logger &err(Logger &l)
 	{
-		set(path);
+		l.err();
+		return l;
 	}
 
-	~Logger()
+	Logger &war(Logger &l)
 	{
-		file.close();
+		l.war();
+		return l;
 	}
-};
 
+	Logger &endl(Logger &l)
+	{
+		l.endl();
+		return l;
+	}
 
-template<typename T>
-Logger &operator<<(Logger &log, const T &t)
-{
-	log.file << t;
-	std::cout << t;
-	return log;
-}
+	template<typename T>
+	Logger &operator<<(Logger &l, const T &v)
+	{
+		l.print(v);
+		return l;
+	}
 
-Logger &operator<<(Logger &log, std::ostream &(*var)(std::ostream&))
-{
-	log.file << var;
-	std::cout << var;
-	return log;
+	Logger &operator<<(Logger &l, Logger &(*fu)(Logger&))
+	{
+		fu(l);
+		return l;
+	}
 }

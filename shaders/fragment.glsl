@@ -2,7 +2,7 @@
 #define PI 3.141592659
 #define APPROX_0 0.001
 #define MAX_STEPS 128
-#define MAX_DIST 256
+#define MAX_DIST 256.0
 
 out vec4 FragColor;
 
@@ -15,14 +15,38 @@ uniform vec2 WIN_SIZE;
 uniform float WIDTH;
 uniform float HEIGHT;
 
-in vec3 pos;
-in vec3 up;
-in vec3 right;
-in vec3 front;
-
 in vec3 sun;
 
-// noise from https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+vec2 hash2(vec2 p)
+{
+	vec3 a = fract(p.xyx*vec3(123.65, 219.53, 235.532));
+	a += dot(a, a + 54.23);
+	return fract(vec2(a.x*a.y, a.y*a.z));
+}
+
+float voronoi(vec2 p)
+{
+	vec2 ip = floor(p);
+	vec2 dp = p - ip;
+	float min_dist = 10.0;
+	for(int i = -1; i != 2; ++i)
+	{
+		for(int j = -1; j != 2; ++j)
+		{
+			vec2 lp = vec2(float(i), float(j));
+			float dist = length(hash2(ip+lp)-(dp-lp-vec2(0.5)));
+
+			if(min_dist > dist)
+			{
+				min_dist = dist;
+			}
+		}
+	}
+
+	return min_dist;
+}
+
+// snoise from https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
 vec4 permute(vec4 x)
 {
 	return mod(((x*34.0)+1.0)*x, 289.0);
@@ -106,55 +130,38 @@ float octave(vec3 p, int o)
 	return ret / (2.0-1.0/pow(2.0,(o-1.0)));
 }
 
-float sphereDist(float r, vec3 sphere_pos, vec3 p)
+vec2 deform(vec2 p, float f)
 {
-	return length(p - sphere_pos) - r;
-}
- 
-float sceneDist(vec3 p)
-{
-	return sphereDist(1.0, vec3(0.0), p);
+	return vec2(p.x + snoise(p.xyx)*f, p.y + snoise(p.yxy)*f);
 }
 
-float rayMarch(vec3 r_pos, vec3 r_dir) {
-	r_dir = normalize(r_dir);
-	float path_length=0.0;
-    
-    for(int i=0; i<MAX_STEPS; i++) {
-    	vec3 p = r_pos + r_dir*path_length;
-        float dist = sceneDist(p);
-        path_length += dist;
-        if(path_length>MAX_DIST || dist<APPROX_0) break;
-    }
-	
-    return path_length;
+vec2 deform(vec2 p, float f, int o)
+{
+	return vec2(p.x + octave(p.xyx, o)*f, p.y + octave(p.yxy, o)*f);
 }
 
-vec3 getNormal(vec3 p) {
-	float dist = sceneDist(p);
-    vec3 n = dist - vec3(
-        sceneDist(p - vec3(APPROX_0, 0.0, 0.0)),
-        sceneDist(p - vec3(0.0, APPROX_0, 0.0)),
-        sceneDist(p - vec3(0.0, 0.0, APPROX_0)));
-    
-    return normalize(n);
+float getH(vec2 p)
+{
+	return voronoi(deform(p*5.0, sin(TIME)*0.25, 3) * vec2(1.0, 0.5));
 }
+
+vec3 getNormal(vec2 p) {
+	float h0 = getH(p);
+	vec3 v1 = vec3(APPROX_0, 0.0, getH(p + vec2(APPROX_0, 0.0)) - h0);
+	vec3 v2 = vec3(0.0, APPROX_0, getH(p + vec2(0.0, APPROX_0)) - h0);
+
+    return normalize(cross(v1, v2));
+}
+
 vec3 getColorAt(vec2 uv)
 {
-	vec3 ray = front+right*uv.x+up*uv.y;
-	float dist = rayMarch(pos, ray);
+	vec3 color = vec3(0.0, 0.3, 1.0);
 
-	vec3 color = vec3(0.0);
+	float diff = dot(sun, getNormal(uv)) * 0.5 + 0.5;
 
-	if(dist < MAX_DIST)
-	{
-		ray *= dist;
-		vec3 norm = getNormal(ray);
-		float diff = dot(norm, sun);
-		color = vec3(diff/dist);
-	}
+	diff = pow(diff, 1/2.2);
 
-
+	color *= diff;
 
 	return color;
 }
@@ -162,7 +169,7 @@ vec3 getColorAt(vec2 uv)
 void main()
 {
 	vec2 uv = fragPos * vec2(WIN_SIZE.x/WIN_SIZE.y, 1.0);
-/*
+
 	int samples = 2;
 
 	vec3 color = vec3(0.0);
@@ -176,6 +183,6 @@ void main()
 	}
 
 	color /= float(samples * samples);
-*/
-	FragColor = vec4(vec3(octave(vec3(uv, TIME), 8)*0.5 + 0.5 ), 1.0);
+
+	FragColor = vec4(color, 1.0);
 }

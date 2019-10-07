@@ -17,9 +17,9 @@ float start_time;
 float time_on_pause = 0.0;
 float paused_time;
 
-Logger logger;
+lg::Logger logger;
 
-Shader shader;
+sh::Shader shader;
 
 GLFWwindow* window;
 
@@ -37,9 +37,9 @@ void framebuffer_size_callback(GLFWwindow* window, int w, int h)
 
 void reloadShaders()
 {
-	shader = Shader(logger, "shaders/vertex.glsl", "shaders/fragment.glsl");
-	shader.use();
-	logger << "shader reloaded" << std::endl;
+	shader = sh::loadShader(logger, "shaders/vertex.glsl", "shaders/fragment.glsl");
+	glUseProgram(shader);
+	logger << lg::inf << "shader reloaded" << lg::endl;
 }
 
 class ShaderReloadKE :KeyEvent
@@ -123,12 +123,12 @@ public:
 	{
 		if (is_timer_run)
 		{
-			logger << "timer paused" << std::endl;
+			logger << lg::inf << "timer paused" << lg::endl;
 			paused_time = glfwGetTime();
 		}
 		else
 		{
-			logger << "timer unpaused" << std::endl;
+			logger << lg::inf << "timer unpaused" << lg::endl;
 			time_on_pause += glfwGetTime() - paused_time;
 		}
 
@@ -151,8 +151,8 @@ public:
 	FPSLockKE() : KeyEvent(GLFW_KEY_F2) {}
 	void onJustPressed()
 	{
-		if (is_fps_locked)logger << "fps unlocked" << std::endl;
-		if (!is_fps_locked)logger << "fps locked" << std::endl;
+		if (is_fps_locked)logger << lg::inf << "fps unlocked" << lg::endl;
+		if (!is_fps_locked)logger << lg::inf << "fps locked" << lg::endl;
 		is_fps_locked = !is_fps_locked;
 	}
 	void onPressed() {}
@@ -170,10 +170,10 @@ int main()
 
 	if (!glfwInit())
 	{
-		logger << "failed to initialize GLFW";
+		logger << lg::err << "failed to initialize GLFW";
 		return -1;
 	}
-	logger << "GLFW success initialized" << std::endl;
+	logger << lg::inf << "GLFW success initialized" << lg::endl;
 
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -183,10 +183,10 @@ int main()
 	window = glfwCreateWindow(width, height, "Defernus's shader toy", nullptr, nullptr);
 	if (!window)
 	{
-		logger << "failed to create window";
+		logger << lg::err << "failed to create window";
 		return -1;
 	}
-	logger << "window success created" << std::endl;
+	logger << lg::inf << "window success created" << lg::endl;
 
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -194,10 +194,10 @@ int main()
 
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
-		logger << "failed to initialize GLAD" << std::endl;
+		logger << lg::err << "failed to initialize GLAD" << lg::endl;
 		return -1;
 	}
-	logger << "GLAD success initialized" << std::endl;
+	logger << lg::inf << "GLAD success initialized" << lg::endl;
 
 	reloadShaders();
 
@@ -221,8 +221,6 @@ int main()
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, 12*sizeof(float), &vertices[0], GL_STATIC_DRAW);
 
-
-	// vertex Positions
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float)*2, (void*)0);
 
@@ -276,8 +274,8 @@ int main()
 		std::string title = "Defernus's shader toy FPS: " + std::to_string(fps) + " timer: " + std::to_string(timer);
 		glfwSetWindowTitle(window, title.c_str());
 
-		shader.setVec2("WIN_SIZE", glm::vec2(width, height));
-		shader.setFloat("TIME", timer);
+		sh::setVec2(shader, "WIN_SIZE", glm::vec2(width, height));
+		sh::setFloat(shader, "TIME", timer);
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -287,7 +285,7 @@ int main()
 
 	glfwTerminate();
 
-	logger << "finished";
+	logger << lg::inf << "finished";
 
 	return 0;
 }
