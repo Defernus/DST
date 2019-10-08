@@ -29,12 +29,12 @@ float voronoi(vec2 p)
 	vec2 ip = floor(p);
 	vec2 dp = p - ip;
 	float min_dist = 10.0;
-	for(int i = -1; i != 2; ++i)
+	for(int i = -1; i != 3; ++i)
 	{
-		for(int j = -1; j != 2; ++j)
+		for(int j = -1; j != 3; ++j)
 		{
 			vec2 lp = vec2(float(i), float(j));
-			float dist = length(hash2(ip+lp)-(dp-lp-vec2(0.5)));
+			float dist = length(hash2(ip+lp)-(dp-lp));
 
 			if(min_dist > dist)
 			{
