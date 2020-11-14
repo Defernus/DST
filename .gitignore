@@ -40,5 +40,8 @@
 *.lastbuildstate
 *.tlog
 
+# vs code
+*.vscode
+
 # Log files
 *.log

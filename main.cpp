@@ -1,4 +1,4 @@
-#include "glad.h"
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <string>
@@ -12,6 +12,12 @@
 
 int width = 1920;
 int height = 1080;
+
+int mouse_x = width >> 1;
+int mouse_y = height >> 1;
+
+float scroll_x = 0.0;
+float scroll_y = 0.0;
 
 float start_time;
 float time_on_pause = 0.0;
@@ -33,6 +39,18 @@ void framebuffer_size_callback(GLFWwindow* window, int w, int h)
 	width = w;
 	height = h;
 	glViewport(0, 0, w, h);
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	scroll_x += xoffset;
+	scroll_y += yoffset;
+}
+
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	mouse_x = xpos;
+	mouse_y = height - ypos - 1;
 }
 
 void reloadShaders()
@@ -189,6 +207,8 @@ int main()
 	logger << lg::inf << "window success created" << lg::endl;
 
 	glfwMakeContextCurrent(window);
+	glfwSetScrollCallback(window, scroll_callback);
+	glfwSetCursorPosCallback(window, cursor_position_callback);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwGetWindowSize(window, &width, &height);
 
@@ -271,10 +291,17 @@ int main()
 			timer =  glfwGetTime() - (start_time + time_on_pause);
 		}
 
-		std::string title = "Defernus's shader toy FPS: " + std::to_string(fps) + " timer: " + std::to_string(timer);
+		std::string title =
+			  "Defernus's shader toy FPS: " + std::to_string(fps)
+			+ " timer: " + std::to_string(timer)
+			+ " res: " + std::to_string(width) + "x" + std::to_string(height)
+			+ " mouse: (" + std::to_string(mouse_x) + "," + std::to_string(mouse_y) + ")"
+			+ " scroll: (" + std::to_string(scroll_x) + "," + std::to_string(scroll_y) + ")";
 		glfwSetWindowTitle(window, title.c_str());
 
 		sh::setVec2(shader, "WIN_SIZE", glm::vec2(width, height));
+		sh::setVec2(shader, "MOUSE", glm::vec2(mouse_x, mouse_y));
+		sh::setVec2(shader, "SCROLL", glm::vec2(scroll_x, scroll_y));
 		sh::setFloat(shader, "TIME", timer);
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);

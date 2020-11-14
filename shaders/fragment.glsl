@@ -8,20 +8,19 @@ in vec2 fragPos;
 uniform float TIME;
 
 uniform vec2 WIN_SIZE;
+uniform vec2 MOUSE;
+uniform vec2 SCROLL;
 
 uniform float WIDTH;
 uniform float HEIGHT;
 
-in vec3 sun;
-
-const float TIME_FACTOR = .1;
 const float PI = 3.14159265;
-const float MAX_DISTANCE = 100.;
-const int MAX_RENDER_ITERATIONS = 1000;
-const int MAX_FRACTAL_ITERATIONS = 250;
+const float MAX_DISTANCE = 10.;
+const int MAX_RENDER_ITERATIONS = 500;
+const int MAX_FRACTAL_ITERATIONS = 100;
 const float EPSILON = 0.0001;
 const float DISTANCE_FACTOR = 1.;//for fractals
-const vec3 BACKGROUND_COLOR = vec3(0., 0.7, 1.);
+const vec3 BACKGROUND_COLOR = vec3(0., 0., 0.);
 const vec3 lightDir = normalize(vec3(0.7, 0.9, -1.));
 
 /** utils **/
@@ -112,7 +111,6 @@ FractalData getMandelbulb( vec3 pos, float Power ) {
 }
 
 vec3 getColor(vec2 uv, Camera cam, float scale) {
-	float time = TIME*TIME_FACTOR;
     vec3 dir = normalize(cam.front + uv.x * cam.right + uv.y * cam.top);
     float rayLength = 0.;
 
@@ -120,7 +118,7 @@ vec3 getColor(vec2 uv, Camera cam, float scale) {
     
     for(int i = 0; i != MAX_RENDER_ITERATIONS && rayLength < MAX_DISTANCE; ++i) {
         vec3 point = cam.pos + dir * rayLength;
-        FractalData data = getMandelbulb(point, sin(time/2.)*10.+ 12.);
+        FractalData data = getMandelbulb(point, cos(TIME/10.)*5.+ 10.);
         rayLength += data.dist;
         if(data.dist < minDistData.dist) {
             minDistData = data;
@@ -130,26 +128,28 @@ vec3 getColor(vec2 uv, Camera cam, float scale) {
         }
     }
     vec3 color = vec3(
-        sin( log(minDistData.pathDist) * sin(time*.3457) )*.5+.5,
-        sin( log(minDistData.pathDist) * sin(time*.22475) )*.5+.5,
-        sin( log(minDistData.pathDist) * sin(time*.364257) )*.5+.5
+        sin( log(log(minDistData.pathDist)) * (TIME*.01)    )*.5+.5,
+        sin( log(log(minDistData.pathDist)) * (TIME*.01)*.6 )*.5+.5,
+        sin( log(log(minDistData.pathDist)) * (TIME*.01)*.3 )*.5+.5
     );
-    return mix(color*vec3(pow(minDistData.factor, 11.)), BACKGROUND_COLOR, minDistData.dist);
+    return mix(color*pow(minDistData.factor, 32.)*4., BACKGROUND_COLOR, minDistData.dist);
 }
 
 void main()
 {
-	float time = TIME*TIME_FACTOR;
-	float scale = 1./(sin(time/11.33)*1.+2.);
+    float scroll = SCROLL.y*.1 +1.;
+    scroll = pow(scroll, scroll);
+	float scale = 1./(scroll+.1);
 	vec2 uv = fragPos * vec2(1.0, WIN_SIZE.y/WIN_SIZE.x) * scale;
+    vec2 rot = (MOUSE - WIN_SIZE/2.)/WIN_SIZE * PI*2.;
 
-    vec3 camPos = rotate(vec3(0., 3., 0.), vec3(0., 0., 1.), .345+time/1.);
-    //camPos = rotate(camPos, , 1.124 +time/7.);
+    vec3 camPos = rotate(vec3(0., 0., -2.), vec3(0., 1., 0.), rot.x);
+    camPos = rotate(camPos, rotate(vec3(1., 0., 0.), vec3(0., 1., 0.), rot.x), rot.y);
 
     Camera cam = getNewCamera(
     	camPos,
     	vec3(0.),
-    	vec3(0., 0., 1.)
+    	vec3(0., 1., 0.)
     );
 
 	FragColor = vec4(getColor(uv, cam, scale), 1.);
