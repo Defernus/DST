@@ -1,4 +1,4 @@
-#include <glad/glad.h>
+#include "glad.h"
 #include <GLFW/glfw3.h>
 
 #include <string>
@@ -10,8 +10,8 @@
 #include "utils/shader.h"
 #include "utils/logger.h"
 
-int width = 900;
-int height = 600;
+int width = 1920;
+int height = 1080;
 
 float start_time;
 float time_on_pause = 0.0;

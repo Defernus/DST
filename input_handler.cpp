@@ -3,6 +3,7 @@
 #include <set>
 #include <map>
 #include <iostream>
+#include <cstring>
 
 std::multimap<int, KeyEvent*> events;
 

@@ -1,8 +1,5 @@
 #version 330 core
-#define PI 3.141592659
-#define APPROX_0 0.001
-#define MAX_STEPS 128
-#define MAX_DIST 256.0
+precision highp float;
 
 out vec4 FragColor;
 
@@ -17,172 +14,143 @@ uniform float HEIGHT;
 
 in vec3 sun;
 
-vec2 hash2(vec2 p)
-{
-	vec3 a = fract(p.xyx*vec3(123.65, 219.53, 235.532));
-	a += dot(a, a + 54.23);
-	return fract(vec2(a.x*a.y, a.y*a.z));
+const float TIME_FACTOR = .1;
+const float PI = 3.14159265;
+const float MAX_DISTANCE = 100.;
+const int MAX_RENDER_ITERATIONS = 1000;
+const int MAX_FRACTAL_ITERATIONS = 250;
+const float EPSILON = 0.0001;
+const float DISTANCE_FACTOR = 1.;//for fractals
+const vec3 BACKGROUND_COLOR = vec3(0., 0.7, 1.);
+const vec3 lightDir = normalize(vec3(0.7, 0.9, -1.));
+
+/** utils **/
+
+vec4 mult(vec4 q1, vec4 q2) { 
+  return vec4 (
+  	(q1.w * q2.x) + (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y),
+  	(q1.w * q2.y) - (q1.x * q2.z) + (q1.y * q2.w) + (q1.z * q2.x),
+    (q1.w * q2.z) + (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w),
+    (q1.w * q2.w) - (q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z)
+  );
 }
 
-float voronoi(vec2 p)
-{
-	vec2 ip = floor(p);
-	vec2 dp = p - ip;
-	float min_dist = 10.0;
-	for(int i = -1; i != 3; ++i)
-	{
-		for(int j = -1; j != 3; ++j)
-		{
-			vec2 lp = vec2(float(i), float(j));
-			float dist = length(hash2(ip+lp)-(dp-lp));
-
-			if(min_dist > dist)
-			{
-				min_dist = dist;
-			}
-		}
-	}
-
-	return min_dist;
+vec3 rotate(vec3 point, vec3 axe, float angle) {
+    float sinA = sin(angle/2.0);
+    float cosA = cos(angle/2.0);
+    return mult(
+        mult(
+        	vec4(sinA * axe, cosA),
+    		vec4(point.xyz, 0.)
+    	),
+        vec4(-sinA * axe, cosA)
+    ).xyz;
 }
 
-// snoise from https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
-vec4 permute(vec4 x)
-{
-	return mod(((x*34.0)+1.0)*x, 289.0);
-}
-vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+/** ===== **/
 
-float snoise(vec3 v)
-{ 
-	const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-	const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
 
-	vec3 i  = floor(v + dot(v, C.yyy) );
-	vec3 x0 =   v - i + dot(i, C.xxx) ;
+/** camera data **/
 
-	vec3 g = step(x0.yzx, x0.xyz);
-	vec3 l = 1.0 - g;
-	vec3 i1 = min( g.xyz, l.zxy );
-	vec3 i2 = max( g.xyz, l.zxy );
+struct Camera {
+    vec3 pos;
+    vec3 top;
+    vec3 right;
+    vec3 front;
+};
 
-	vec3 x1 = x0 - i1 + 1.0 * C.xxx;
-	vec3 x2 = x0 - i2 + 2.0 * C.xxx;
-	vec3 x3 = x0 - 1. + 3.0 * C.xxx;
-
-	i = mod(i, 289.0 ); 
-	vec4 p = permute( permute( permute( 
-             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
-           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-
-	float n_ = 1.0/7.0;
-	vec3  ns = n_ * D.wyz - D.xzx;
-
-	vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
-
-	vec4 x_ = floor(j * ns.z);
-	vec4 y_ = floor(j - 7.0 * x_ );
-
-	vec4 x = x_ *ns.x + ns.yyyy;
-	vec4 y = y_ *ns.x + ns.yyyy;
-	vec4 h = 1.0 - abs(x) - abs(y);
-
-	vec4 b0 = vec4( x.xy, y.xy );
-	vec4 b1 = vec4( x.zw, y.zw );
-
-	vec4 s0 = floor(b0)*2.0 + 1.0;
-	vec4 s1 = floor(b1)*2.0 + 1.0;
-	vec4 sh = -step(h, vec4(0.0));
-
-	vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-	vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-
-	vec3 p0 = vec3(a0.xy,h.x);
-	vec3 p1 = vec3(a0.zw,h.y);
-	vec3 p2 = vec3(a1.xy,h.z);
-	vec3 p3 = vec3(a1.zw,h.w);
-
-	vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-	p0 *= norm.x;
-	p1 *= norm.y;
-	p2 *= norm.z;
-	p3 *= norm.w;
-
-	vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-	m = m * m;
-	return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
+Camera getNewCamera(vec3 pos, vec3 lookAt, vec3 top) {
+    vec3 front = normalize(lookAt - pos);
+    vec3 right = normalize(cross(front, top));
+    return Camera(
+        pos,
+        normalize(cross(right, front)),
+        right,
+        front
+    );
 }
 
-float octave(vec3 p, int o)
-{
-	float ret = 0;
+/** =========== **/
 
-	float scale = 1.0;
 
-	for(int i = 0; i < o; ++i)
-	{
-		ret += snoise(p) * scale;
-		p *= 2.0;
-		scale *= 0.5;
-	}
+struct FractalData {
+    float dist;
+    float factor;
+    float pathDist;
+};
 
-	return ret / (2.0-1.0/pow(2.0,(o-1.0)));
+// distance estimator from http://celarek.at/wp/wp-content/uploads/2014/05/realTimeFractalsReport.pdf
+FractalData getMandelbulb( vec3 pos, float Power ) {
+    vec3 z = pos;
+    float dr = 2.;
+    float r;
+    int i = 0;
+    float pathDist = 0;
+    for(; i != MAX_FRACTAL_ITERATIONS; ++i) {
+        r = length(z);
+        if(r > 2.) break;
+        float theta = acos(z.z/r);
+        float phi = atan(z.y, z.x );
+        dr = pow(r, Power - 1.) * Power * dr + 1.;
+        float zr = pow(r, Power);
+        theta = theta * Power;
+        phi = phi * Power;
+        vec3 prevZ = z;
+        z = zr * vec3(
+            sin(theta)*cos(phi),
+            sin(phi)*sin(theta),
+            cos(theta)
+        );
+        z += pos;
+        pathDist += distance(z, prevZ);
+    }
+    return FractalData(
+        .5*log(r)*r / dr,
+        1.-float(i)/float(MAX_FRACTAL_ITERATIONS),
+    	pathDist
+    );
 }
 
-vec2 deform(vec2 p, float f)
-{
-	return vec2(p.x + snoise(p.xyx)*f, p.y + snoise(p.yxy)*f);
-}
+vec3 getColor(vec2 uv, Camera cam, float scale) {
+	float time = TIME*TIME_FACTOR;
+    vec3 dir = normalize(cam.front + uv.x * cam.right + uv.y * cam.top);
+    float rayLength = 0.;
 
-vec2 deform(vec2 p, float f, int o)
-{
-	return vec2(p.x + octave(p.xyx, o)*f, p.y + octave(p.yxy, o)*f);
-}
-
-float getH(vec2 p)
-{
-	return voronoi(deform(p*5.0, sin(TIME)*0.25, 3) * vec2(1.0, 0.5));
-}
-
-vec3 getNormal(vec2 p) {
-	float h0 = getH(p);
-	vec3 v1 = vec3(APPROX_0, 0.0, getH(p + vec2(APPROX_0, 0.0)) - h0);
-	vec3 v2 = vec3(0.0, APPROX_0, getH(p + vec2(0.0, APPROX_0)) - h0);
-
-    return normalize(cross(v1, v2));
-}
-
-vec3 getColorAt(vec2 uv)
-{
-	vec3 color = vec3(0.0, 0.3, 1.0);
-
-	float diff = dot(sun, getNormal(uv)) * 0.5 + 0.5;
-
-	diff = pow(diff, 1/2.2);
-
-	color *= diff;
-
-	return color;
+    FractalData minDistData = FractalData(1., 1., 1.);
+    
+    for(int i = 0; i != MAX_RENDER_ITERATIONS && rayLength < MAX_DISTANCE; ++i) {
+        vec3 point = cam.pos + dir * rayLength;
+        FractalData data = getMandelbulb(point, sin(time/2.)*10.+ 12.);
+        rayLength += data.dist;
+        if(data.dist < minDistData.dist) {
+            minDistData = data;
+        }
+        if(data.dist < EPSILON * scale) {
+            break;
+        }
+    }
+    vec3 color = vec3(
+        sin( log(minDistData.pathDist) * sin(time*.3457) )*.5+.5,
+        sin( log(minDistData.pathDist) * sin(time*.22475) )*.5+.5,
+        sin( log(minDistData.pathDist) * sin(time*.364257) )*.5+.5
+    );
+    return mix(color*vec3(pow(minDistData.factor, 11.)), BACKGROUND_COLOR, minDistData.dist);
 }
 
 void main()
 {
-	vec2 uv = fragPos * vec2(WIN_SIZE.x/WIN_SIZE.y, 1.0);
+	float time = TIME*TIME_FACTOR;
+	float scale = 1./(sin(time/11.33)*1.+2.);
+	vec2 uv = fragPos * vec2(1.0, WIN_SIZE.y/WIN_SIZE.x) * scale;
 
-	int samples = 2;
+    vec3 camPos = rotate(vec3(0., 3., 0.), vec3(0., 0., 1.), .345+time/1.);
+    //camPos = rotate(camPos, , 1.124 +time/7.);
 
-	vec3 color = vec3(0.0);
+    Camera cam = getNewCamera(
+    	camPos,
+    	vec3(0.),
+    	vec3(0., 0., 1.)
+    );
 
-	for(int  i = 0; i != samples; ++i)
-	{
-		for(int j = 0; j != samples; ++j)
-		{
-			color += getColorAt(uv + vec2(float(i)/float(samples), float(j)/float(samples))/WIN_SIZE.yy);
-		}
-	}
-
-	color /= float(samples * samples);
-
-	FragColor = vec4(color, 1.0);
+	FragColor = vec4(getColor(uv, cam, scale), 1.);
 }
