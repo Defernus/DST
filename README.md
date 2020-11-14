@@ -2,16 +2,20 @@
 DST Shader Toy
 
 ## Build
-install g++  
+Install g++.  
 ```sudo apt install g++```  
-install glfw  
+  
+Install glfw.  
 ```sudo apt install libglfw-dev```  
-download [glad](https://glad.dav1d.de/) (select gl Version 4.5 and only checkbox "Local Files")  
-then compile it  
+  
+Download [glad](https://glad.dav1d.de/) (select gl Version 4.5 and only checkbox "Local Files").  
+Then compile it.  
 ```g++ -c glad.c ```  
-locate glad headers at /usr/include  
+and locate glad headers at /usr/include  
+
+Build shadertoy!  
 ```./build.sh```  
 
 ## Run
-```sudo chmod +x ./bin/out```
-```./bin/out```
+```sudo chmod +x ./bin/out```  
+```./bin/out```  
