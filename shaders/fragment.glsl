@@ -3,29 +3,25 @@ precision highp float;
 
 out vec4 FragColor;
 
-in vec2 fragPos;
+in vec2 uv;
+in float scale;
+
+uniform vec3 CAM_POSITION;
+uniform vec3 CAM_FRONT;
+uniform vec3 CAM_TOP;
+
+uniform vec2 MOUSE;
 
 uniform float TIME;
 
-uniform vec2 WIN_SIZE;
-uniform vec2 MOUSE;
-uniform vec2 SCROLL;
-
-uniform vec3 POSITION;
-uniform vec3 ROTATION;
-
-uniform float WIDTH;
-uniform float HEIGHT;
-
 const float PI = 3.14159265;
-const float MAX_DISTANCE = 4.;
+const float MAX_DISTANCE = 16.;
 const int MAX_RENDER_ITERATIONS = 500;
 const int MAX_FRACTAL_ITERATIONS = 100;
 const float EPSILON = 0.001;
 const vec3 BACKGROUND_COLOR = vec3(0., 0., 0.);
 const vec3 lightDir = normalize(vec3(0.7, 0.9, -1.));
 
-/** utils **/
 
 vec4 mult(vec4 q1, vec4 q2) { 
   return vec4 (
@@ -48,10 +44,7 @@ vec3 rotate(vec3 point, vec3 axe, float angle) {
     ).xyz;
 }
 
-/** ===== **/
 
-
-/** camera data **/
 
 struct Camera {
     vec3 pos;
@@ -60,18 +53,16 @@ struct Camera {
     vec3 front;
 };
 
-Camera getNewCamera(vec3 pos, vec3 lookAt, vec3 top) {
-    vec3 front = normalize(lookAt - pos);
+Camera getNewCamera(vec3 pos, vec3 front, vec3 top) {
     vec3 right = normalize(cross(front, top));
     return Camera(
         pos,
         normalize(cross(right, front)),
         right,
-        front
+        normalize(front)
     );
 }
 
-/** =========== **/
 
 
 struct FractalData {
@@ -130,28 +121,19 @@ vec3 getColor(vec2 uv, Camera cam, float scale) {
         }
     }
     vec3 color = vec3(
-        sin( log(log(minDistData.pathDist)/scale) * (TIME*.1)    )*.5+.5,
-        sin( log(log(minDistData.pathDist)/scale) * (TIME*.1)*.6 )*.5+.5,
-        sin( log(log(minDistData.pathDist)/scale) * (TIME*.1)*.3 )*.5+.5
+        sin( log(log(minDistData.pathDist)/scale) * cos(TIME*2.017 + 1.) )*.5+.5,
+        sin( log(log(minDistData.pathDist)/scale) * cos(TIME*2.039) )*.5+.5,
+        sin( log(log(minDistData.pathDist)/scale) * cos(TIME*2.083) )*.5+.5
     );
     return mix(color*pow(minDistData.factor, 64./scale)*4., BACKGROUND_COLOR, minDistData.dist);
 }
 
 void main()
 {
-    float scale = SCROLL.y*.1 +1.;
-    
-	vec2 uv = fragPos * vec2(1.0, WIN_SIZE.y/WIN_SIZE.x);
-    vec2 rot = ROTATION.xy;
-
-    vec3 camPos = vec3(0., 0., 2.) + POSITION;
-    vec3 lookDir = rotate(vec3(0., 0., -1.), vec3(1., 0., 0.), rot.y);
-    lookDir = rotate(lookDir, vec3(0., 1., 0.), rot.x);
-
     Camera cam = getNewCamera(
-    	camPos,
-    	camPos + lookDir,
-    	vec3(0., 1., 0.)
+    	CAM_POSITION,
+    	CAM_FRONT,
+    	CAM_TOP
     );
 
 	FragColor = vec4(getColor(uv, cam, scale), 1.);

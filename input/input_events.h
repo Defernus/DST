@@ -158,36 +158,32 @@ namespace inp {
 	move_forward_event(GLFW_KEY_W, [](){
 		double factor = ctx::scroll_y * .1 + 1.;
 		factor = pow(factor, factor);
-		ctx::pos_z -= ctx::delta_time*cos(ctx::rot_yaw)*cos(ctx::rot_pitch) / factor;
-		ctx::pos_x -= ctx::delta_time*sin(ctx::rot_yaw)*cos(ctx::rot_pitch) / factor;
-		ctx::pos_y += ctx::delta_time*sin(ctx::rot_pitch) / factor;
+		ctx::cam.move(ctx::cam.getFront() * glm::vec3(ctx::delta_time/factor));
 	}),
 	move_back_event(GLFW_KEY_S, [](){
 		double factor = ctx::scroll_y * .1 + 1.;
 		factor = pow(factor, factor);
-		ctx::pos_z += ctx::delta_time*cos(ctx::rot_yaw)*cos(ctx::rot_pitch) / factor;
-		ctx::pos_x += ctx::delta_time*sin(ctx::rot_yaw)*cos(ctx::rot_pitch) / factor;
-		ctx::pos_y -= ctx::delta_time*sin(ctx::rot_pitch) / factor;
+		ctx::cam.move(ctx::cam.getFront() * glm::vec3(-ctx::delta_time/factor));
 	}),
 	move_right_event(GLFW_KEY_D, [](){
 		double factor = ctx::scroll_y * .1 + 1.;
 		factor = pow(factor, factor);
-		ctx::pos_x += ctx::delta_time*cos(ctx::rot_yaw)*cos(ctx::rot_pitch) / factor;
-		ctx::pos_z -= ctx::delta_time*sin(ctx::rot_yaw)*cos(ctx::rot_pitch) / factor;
+		ctx::cam.move(ctx::cam.getRight() * glm::vec3(ctx::delta_time/factor));
 	}),
 	move_left_event(GLFW_KEY_A, [](){
 		double factor = ctx::scroll_y * .1 + 1.;
 		factor = pow(factor, factor);
-		ctx::pos_x -= ctx::delta_time*cos(ctx::rot_yaw)*cos(ctx::rot_pitch) / factor;
-		ctx::pos_z += ctx::delta_time*sin(ctx::rot_yaw)*cos(ctx::rot_pitch) / factor;
+		ctx::cam.move(ctx::cam.getRight() * glm::vec3(-ctx::delta_time/factor));
 	}),
 	move_up_event(GLFW_KEY_E, [](){
 		double factor = ctx::scroll_y * .1 + 1.;
-		ctx::pos_y += ctx::delta_time / pow(factor, factor);
+		factor = pow(factor, factor);
+		ctx::cam.move(ctx::cam.getTop() * glm::vec3(ctx::delta_time/factor));
 	}),
 	move_down_event(GLFW_KEY_Q, [](){
 		double factor = ctx::scroll_y * .1 + 1.;
-		ctx::pos_y -= ctx::delta_time / pow(factor, factor);
+		factor = pow(factor, factor);
+		ctx::cam.move(ctx::cam.getTop() * glm::vec3(-ctx::delta_time/factor));
 	});
 
 	void registerAllEvents()

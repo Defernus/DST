@@ -1,6 +1,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 #include <string>
 #include <thread>
 #include <chrono>
@@ -35,11 +38,14 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	double mx = xpos/ctx::width*2. - 1.;
-	double my = 1. - ypos/ctx::height*2.;
+	double mx = xpos;
+	double my = ctx::height - ypos - 1.;
 	if(ctx::is_lmb_pressed) {
-		ctx::rot_yaw += mx - ctx::mouse_x;
-		ctx::rot_pitch -= my - ctx::mouse_y;
+		double yaw = (mx - ctx::mouse_x)/ctx::width;
+		double pitch = (my - ctx::mouse_y)/ctx::width;
+
+		ctx::cam.rotate(ctx::cam.getRight(), -pitch * M_PI);
+		ctx::cam.rotate(ctx::cam.getTop(), yaw * M_PI);
 	}
 	ctx::mouse_x = mx;
 	ctx::mouse_y = my;
@@ -161,9 +167,10 @@ int main()
 		sh::setVec2(ctx::shader, "MOUSE", glm::vec2(ctx::mouse_x, ctx::mouse_y));
 		sh::setVec2(ctx::shader, "SCROLL", glm::vec2(ctx::scroll_x, ctx::scroll_y));
 
-		sh::setVec3(ctx::shader, "POSITION", glm::vec3(ctx::pos_x, ctx::pos_y, ctx::pos_z));
-		sh::setVec3(ctx::shader, "ROTATION", glm::vec3(ctx::rot_yaw, ctx::rot_pitch, ctx::rot_roll));
-
+		sh::setVec3(ctx::shader, "CAM_POSITION", ctx::cam.getPos());
+		sh::setVec3(ctx::shader, "CAM_FRONT", ctx::cam.getFront());
+		sh::setVec3(ctx::shader, "CAM_TOP", ctx::cam.getTop());
+		
 		sh::setFloat(ctx::shader, "TIME", ctx::timer);
 
 

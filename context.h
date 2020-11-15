@@ -3,6 +3,7 @@
 
 #include "utils/shader.h"
 #include "utils/logger.h"
+#include "camera/camera.h"
 
 namespace ctx {
     bool is_lmb_pressed = false;
@@ -13,20 +14,14 @@ namespace ctx {
     double mouse_x = 0.;
     double mouse_y = 0.;
 
-    double rot_yaw = 0.;
-    double rot_pitch = 0.;
-    double rot_roll = 0.;
-
-    double scroll_x = 0.0;
-    double scroll_y = 0.0;
+    double scroll_x = 0.;
+    double scroll_y = 0.;
 
     double start_time;
-    double time_on_pause = 0.0;
+    double time_on_pause = 0.;
     double paused_time;
 
-    double pos_x = 0;
-    double pos_y = 0;
-    double pos_z = 0;
+    Camera cam = Camera(glm::vec3(0., 0., 3.), glm::vec3(0., 0., -1.), glm::vec3(0., 1., 0.));
 
     lg::Logger logger;
 
