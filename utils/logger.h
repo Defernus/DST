@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <glm/glm.hpp>
 
 namespace lg
 {
@@ -120,6 +121,12 @@ namespace lg
 	Logger &operator<<(Logger &l, Logger &(*fu)(Logger&))
 	{
 		fu(l);
+		return l;
+	}
+
+	Logger &operator<<(Logger &l, glm::vec3 vec)
+	{
+		l << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
 		return l;
 	}
 }
