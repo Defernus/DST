@@ -11,15 +11,17 @@ uniform vec2 WIN_SIZE;
 uniform vec2 MOUSE;
 uniform vec2 SCROLL;
 
+uniform vec3 POSITION;
+uniform vec3 ROTATION;
+
 uniform float WIDTH;
 uniform float HEIGHT;
 
 const float PI = 3.14159265;
-const float MAX_DISTANCE = 10.;
+const float MAX_DISTANCE = 4.;
 const int MAX_RENDER_ITERATIONS = 500;
 const int MAX_FRACTAL_ITERATIONS = 100;
-const float EPSILON = 0.0001;
-const float DISTANCE_FACTOR = 1.;//for fractals
+const float EPSILON = 0.001;
 const vec3 BACKGROUND_COLOR = vec3(0., 0., 0.);
 const vec3 lightDir = normalize(vec3(0.7, 0.9, -1.));
 
@@ -118,37 +120,37 @@ vec3 getColor(vec2 uv, Camera cam, float scale) {
     
     for(int i = 0; i != MAX_RENDER_ITERATIONS && rayLength < MAX_DISTANCE; ++i) {
         vec3 point = cam.pos + dir * rayLength;
-        FractalData data = getMandelbulb(point, cos(TIME/10.)*5.+ 10.);
+        FractalData data = getMandelbulb(point, cos(TIME/10.)*20.+ 22.);
         rayLength += data.dist;
         if(data.dist < minDistData.dist) {
             minDistData = data;
         }
-        if(data.dist < EPSILON * scale) {
+        if(data.dist < EPSILON / pow(scale, scale)) {
             break;
         }
     }
     vec3 color = vec3(
-        sin( log(log(minDistData.pathDist)) * (TIME*.01)    )*.5+.5,
-        sin( log(log(minDistData.pathDist)) * (TIME*.01)*.6 )*.5+.5,
-        sin( log(log(minDistData.pathDist)) * (TIME*.01)*.3 )*.5+.5
+        sin( log(log(minDistData.pathDist)/scale) * (TIME*.1)    )*.5+.5,
+        sin( log(log(minDistData.pathDist)/scale) * (TIME*.1)*.6 )*.5+.5,
+        sin( log(log(minDistData.pathDist)/scale) * (TIME*.1)*.3 )*.5+.5
     );
-    return mix(color*pow(minDistData.factor, 32.)*4., BACKGROUND_COLOR, minDistData.dist);
+    return mix(color*pow(minDistData.factor, 64./scale)*4., BACKGROUND_COLOR, minDistData.dist);
 }
 
 void main()
 {
-    float scroll = SCROLL.y*.1 +1.;
-    scroll = pow(scroll, scroll);
-	float scale = 1./(scroll+.1);
-	vec2 uv = fragPos * vec2(1.0, WIN_SIZE.y/WIN_SIZE.x) * scale;
-    vec2 rot = (MOUSE - WIN_SIZE/2.)/WIN_SIZE * PI*2.;
+    float scale = SCROLL.y*.1 +1.;
+    
+	vec2 uv = fragPos * vec2(1.0, WIN_SIZE.y/WIN_SIZE.x);
+    vec2 rot = ROTATION.xy;
 
-    vec3 camPos = rotate(vec3(0., 0., -2.), vec3(0., 1., 0.), rot.x);
-    camPos = rotate(camPos, rotate(vec3(1., 0., 0.), vec3(0., 1., 0.), rot.x), rot.y);
+    vec3 camPos = vec3(0., 0., 2.) + POSITION;
+    vec3 lookDir = rotate(vec3(0., 0., -1.), vec3(1., 0., 0.), rot.y);
+    lookDir = rotate(lookDir, vec3(0., 1., 0.), rot.x);
 
     Camera cam = getNewCamera(
     	camPos,
-    	vec3(0.),
+    	camPos + lookDir,
     	vec3(0., 1., 0.)
     );
 

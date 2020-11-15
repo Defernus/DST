@@ -5,221 +5,85 @@
 #include <thread>
 #include <chrono>
 
-#include "input_handler.h"
+#include "input/input_handler.h"
+#include "input/input_events.h"
 
 #include "utils/shader.h"
 #include "utils/logger.h"
 
-int width = 1920;
-int height = 1080;
-
-int mouse_x = width >> 1;
-int mouse_y = height >> 1;
-
-float scroll_x = 0.0;
-float scroll_y = 0.0;
-
-float start_time;
-float time_on_pause = 0.0;
-float paused_time;
-
-lg::Logger logger;
-
-sh::Shader shader;
-
-GLFWwindow* window;
-
-float delta_time;
-int fps;
-
-float timer;
+#include "context.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int w, int h)
 {
-	width = w;
-	height = h;
+	ctx::width = w;
+	ctx::height = h;
 	glViewport(0, 0, w, h);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	scroll_x += xoffset;
-	scroll_y += yoffset;
+	ctx::scroll_x += xoffset;
+	ctx::scroll_y += yoffset;
+	if(ctx::scroll_x < 1)ctx::scroll_x=1.;
+	if(ctx::scroll_y < 1)ctx::scroll_y=1.;
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    ctx::is_lmb_pressed = button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS;
 }
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	mouse_x = xpos;
-	mouse_y = height - ypos - 1;
+	double mx = xpos/ctx::width*2. - 1.;
+	double my = 1. - ypos/ctx::height*2.;
+	if(ctx::is_lmb_pressed) {
+		ctx::rot_yaw += mx - ctx::mouse_x;
+		ctx::rot_pitch -= my - ctx::mouse_y;
+	}
+	ctx::mouse_x = mx;
+	ctx::mouse_y = my;
 }
-
-void reloadShaders()
-{
-	shader = sh::loadShader(logger, "shaders/vertex.glsl", "shaders/fragment.glsl");
-	glUseProgram(shader);
-	logger << lg::inf << "shader reloaded" << lg::endl;
-}
-
-class ShaderReloadKE :KeyEvent
-{
-public:
-	ShaderReloadKE() : KeyEvent(GLFW_KEY_R) {}
-	void onJustPressed()
-	{
-		reloadShaders();
-	}
-	void onPressed() {}
-	void onReleased() {}
-
-	const char* getDiscription() const
-	{
-		return "[r] to reload shaders";
-	}
-}shader_reload_event;
-
-class TimeResetKE :KeyEvent
-{
-public:
-	TimeResetKE() : KeyEvent(GLFW_KEY_T) {}
-	void onJustPressed()
-	{
-		time_on_pause = 0.0;
-		timer = 0.0;
-		paused_time = glfwGetTime();
-		start_time = glfwGetTime();
-	}
-	void onPressed() {}
-	void onReleased() {}
-
-	const char* getDiscription() const
-	{
-		return "[t] to reset time";
-	}
-}time_reset_event;
-
-class ExitKE :KeyEvent
-{
-public:
-	ExitKE() : KeyEvent(GLFW_KEY_ESCAPE) {}
-	void onJustPressed()
-	{
-		glfwSetWindowShouldClose(window, true);
-	}
-	void onPressed() {}
-	void onReleased() {}
-
-	const char* getDiscription() const
-	{
-		return "[esc] to exit";
-	}
-}exit_event;
-
-class HelpKE :KeyEvent
-{
-public:
-	HelpKE() : KeyEvent(GLFW_KEY_F1) {}
-	void onJustPressed()
-	{
-		printHelp();
-	}
-	void onPressed() {}
-	void onReleased() {}
-
-	const char* getDiscription() const
-	{
-		return "[f1] to print this";
-	}
-}help_event;
-
-class PauseKE :KeyEvent
-{
-public:
-	bool is_timer_run = true;
-
-	PauseKE() : KeyEvent(GLFW_KEY_SPACE) {}
-	void onJustPressed()
-	{
-		if (is_timer_run)
-		{
-			logger << lg::inf << "timer paused" << lg::endl;
-			paused_time = glfwGetTime();
-		}
-		else
-		{
-			logger << lg::inf << "timer unpaused" << lg::endl;
-			time_on_pause += glfwGetTime() - paused_time;
-		}
-
-		is_timer_run = !is_timer_run;
-	}
-	void onPressed() {}
-	void onReleased() {}
-
-	const char* getDiscription() const
-	{
-		return "[space] to pause";
-	}
-}pause_event;
-
-class FPSLockKE :KeyEvent
-{
-public:
-	bool is_fps_locked = true;
-
-	FPSLockKE() : KeyEvent(GLFW_KEY_F2) {}
-	void onJustPressed()
-	{
-		if (is_fps_locked)logger << lg::inf << "fps unlocked" << lg::endl;
-		if (!is_fps_locked)logger << lg::inf << "fps locked" << lg::endl;
-		is_fps_locked = !is_fps_locked;
-	}
-	void onPressed() {}
-	void onReleased() {}
-
-	const char* getDiscription() const
-	{
-		return "[f2] to switch fps lock";
-	}
-}fps_lock_event;
 
 int main()
 {
-	logger.set("runtime.log");
+	ctx::logger.set("runtime.log");
 
 	if (!glfwInit())
 	{
-		logger << lg::err << "failed to initialize GLFW";
+		ctx::logger << lg::err << "failed to initialize GLFW";
 		return -1;
 	}
-	logger << lg::inf << "GLFW success initialized" << lg::endl;
+	ctx::logger << lg::inf << "GLFW success initialized" << lg::endl;
 
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	window = glfwCreateWindow(width, height, "Defernus's shader toy", nullptr, nullptr);
-	if (!window)
+	ctx::window = glfwCreateWindow(ctx::width, ctx::height, "Defernus's shader toy", nullptr, nullptr);
+	if (!ctx::window)
 	{
-		logger << lg::err << "failed to create window";
+		ctx::logger << lg::err << "failed to create window";
 		return -1;
 	}
-	logger << lg::inf << "window success created" << lg::endl;
+	ctx::logger << lg::inf << "window success created" << lg::endl;
 
-	glfwMakeContextCurrent(window);
-	glfwSetScrollCallback(window, scroll_callback);
-	glfwSetCursorPosCallback(window, cursor_position_callback);
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	glfwGetWindowSize(window, &width, &height);
+	glfwMakeContextCurrent(ctx::window);
+	glfwSetMouseButtonCallback(ctx::window, mouse_button_callback);
+	glfwSetScrollCallback(ctx::window, scroll_callback);
+	glfwSetCursorPosCallback(ctx::window, cursor_position_callback);
+	glfwSetFramebufferSizeCallback(ctx::window, framebuffer_size_callback);
+	glfwGetWindowSize(ctx::window, &ctx::width, &ctx::height);
 
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
-		logger << lg::err << "failed to initialize GLAD" << lg::endl;
+		ctx::logger << lg::err << "failed to initialize GLAD" << lg::endl;
 		return -1;
 	}
-	logger << lg::inf << "GLAD success initialized" << lg::endl;
+	ctx::logger << lg::inf << "GLAD success initialized" << lg::endl;
 
-	reloadShaders();
+	inp::shader_reload_event.reload();
 
 	float vertices[]
 	{
@@ -244,75 +108,74 @@ int main()
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float)*2, (void*)0);
 
-	start_time = glfwGetTime();
-	timer = start_time;
+	ctx::start_time = glfwGetTime();
+	ctx::timer = ctx::start_time;
 
-	initInputHandler(window);
+	initInputHandler(ctx::window);
 
-	addEvent((KeyEvent*)&shader_reload_event);
-	addEvent((KeyEvent*)&time_reset_event);
-	addEvent((KeyEvent*)&help_event);
-	addEvent((KeyEvent*)&exit_event);
-	addEvent((KeyEvent*)&pause_event);
-	addEvent((KeyEvent*)&fps_lock_event);
+	inp::registerAllEvents();
 
 	printHelp();
 
-	float last_frame = glfwGetTime();
-	float second_timer = 0;
+	double last_frame = glfwGetTime();
+	double second_timer = 0;
 	int fps_counter = 0;
 
-	float min_spf = 1.0f / 60.0f;
+	double min_spf = 1. / 60.;
 
-	while (!glfwWindowShouldClose(window))
+	while (!glfwWindowShouldClose(ctx::window))
 	{
-		float current_frame = glfwGetTime();
-		delta_time = current_frame - last_frame;
+		double current_frame = glfwGetTime();
+		ctx::delta_time = current_frame - last_frame;
 		last_frame = current_frame;
 
-		second_timer += delta_time;
+		second_timer += ctx::delta_time;
 		++fps_counter;
 		if (second_timer > 1)
 		{
-			fps = fps_counter / second_timer;
+			ctx::fps = fps_counter / second_timer;
 			fps_counter = 0;
 			second_timer = 0;
 		}
 
-		if (fps_lock_event.is_fps_locked && delta_time < min_spf)
+		if (inp::fps_lock_event.is_fps_locked && ctx::delta_time < min_spf)
 		{
-			std::this_thread::sleep_for(std::chrono::microseconds(long((min_spf - delta_time) * 1000000L)));
+			std::this_thread::sleep_for(std::chrono::microseconds(long((min_spf - ctx::delta_time) * 1000000L)));
 		}
 
-		processInput(window);
+		processInput(ctx::window);
 
-		if (pause_event.is_timer_run)
+		if (inp::pause_event.is_timer_run)
 		{
-			timer =  glfwGetTime() - (start_time + time_on_pause);
+			ctx::timer =  glfwGetTime() - (ctx::start_time + ctx::time_on_pause);
 		}
 
 		std::string title =
-			  "Defernus's shader toy FPS: " + std::to_string(fps)
-			+ " timer: " + std::to_string(timer)
-			+ " res: " + std::to_string(width) + "x" + std::to_string(height)
-			+ " mouse: (" + std::to_string(mouse_x) + "," + std::to_string(mouse_y) + ")"
-			+ " scroll: (" + std::to_string(scroll_x) + "," + std::to_string(scroll_y) + ")";
-		glfwSetWindowTitle(window, title.c_str());
+			  "Defernus's shader toy FPS: " + std::to_string(ctx::fps)
+			+ " timer: " + std::to_string(ctx::timer)
+			+ " res: " + std::to_string(ctx::width) + "x" + std::to_string(ctx::height);
+		glfwSetWindowTitle(ctx::window, title.c_str());
 
-		sh::setVec2(shader, "WIN_SIZE", glm::vec2(width, height));
-		sh::setVec2(shader, "MOUSE", glm::vec2(mouse_x, mouse_y));
-		sh::setVec2(shader, "SCROLL", glm::vec2(scroll_x, scroll_y));
-		sh::setFloat(shader, "TIME", timer);
+
+		sh::setVec2(ctx::shader, "WIN_SIZE", glm::vec2(ctx::width, ctx::height));
+		sh::setVec2(ctx::shader, "MOUSE", glm::vec2(ctx::mouse_x, ctx::mouse_y));
+		sh::setVec2(ctx::shader, "SCROLL", glm::vec2(ctx::scroll_x, ctx::scroll_y));
+
+		sh::setVec3(ctx::shader, "POSITION", glm::vec3(ctx::pos_x, ctx::pos_y, ctx::pos_z));
+		sh::setVec3(ctx::shader, "ROTATION", glm::vec3(ctx::rot_yaw, ctx::rot_pitch, ctx::rot_roll));
+
+		sh::setFloat(ctx::shader, "TIME", ctx::timer);
+
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
-		glfwSwapBuffers(window);
+		glfwSwapBuffers(ctx::window);
 		glfwPollEvents();
 	}
 
 	glfwTerminate();
 
-	logger << lg::inf << "finished";
+	ctx::logger << lg::inf << "finished";
 
 	return 0;
 }
